@@ -1,0 +1,30 @@
+# ── Sensitive / local config ──────────────────────────────
+backend_php/patch_devices.php
+
+# ── PHP session / cache ────────────────────────────────────
+*.session
+*.cache
+
+# ── XAMPP / server ─────────────────────────────────────────
+*.log
+*.bak
+*.tmp
+
+# ── PlatformIO build output ────────────────────────────────
+esp32_code/.pio/
+esp32_code/.vscode/
+
+# ── Node / npm (if any) ────────────────────────────────────
+node_modules/
+dist/
+.npm/
+
+# ── OS junk ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ────────────────────────────────────────────────────
+.idea/
+*.swp
+*.swo

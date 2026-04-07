@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>3D Smart Room – Night</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #020408
+        }
+
+        canvas {
+            display: block
+        }
+
+        /* HUD */
+        #hud {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 50;
+            pointer-events: none;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 98vw
+        }
+
+        .pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(3, 6, 18, .88);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, .08);
+            border-radius: 24px;
+            padding: 6px 14px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 11.5px;
+            font-weight: 500;
+            color: rgba(180, 195, 240, .65);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: all .22s;
+            user-select: none;
+            white-space: nowrap
+        }
+
+        .pill:hover {
+            border-color: rgba(255, 255, 255, .18);
+            color: #cdd8ff
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .15);
+            transition: all .3s;
+            flex-shrink: 0
+        }
+
+        .pill.on-light {
+            background: rgba(255, 210, 50, .08);
+            border-color: rgba(255, 210, 50, .4);
+            color: #ffd832
+        }
+
+        .pill.on-light .dot {
+            background: #ffd832;
+            box-shadow: 0 0 8px #ffd832
+        }
+
+        .pill.on-fan {
+            background: rgba(80, 140, 255, .08);
+            border-color: rgba(80, 140, 255, .4);
+            color: #6aabff
+        }
+
+        .pill.on-fan .dot {
+            background: #6aabff;
+            box-shadow: 0 0 8px #6aabff
+        }
+
+        .pill.on-tv {
+            background: rgba(220, 8, 18, .08);
+            border-color: rgba(220, 8, 18, .4);
+            color: #ff5050
+        }
+
+        .pill.on-tv .dot {
+            background: #ff5050;
+            box-shadow: 0 0 8px #ff5050
+        }
+
+        .pill.on-ac {
+            background: rgba(0, 210, 255, .08);
+            border-color: rgba(0, 210, 255, .4);
+            color: #00d4ff
+        }
+
+        .pill.on-ac .dot {
+            background: #00d4ff;
+            box-shadow: 0 0 10px #00d4ff
+        }
+
+        /* AC temp controls */
+        .act {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 7px;
+            padding-left: 7px;
+            border-left: 1px solid rgba(255, 255, 255, .1)
+        }
+
+        .atb {
+            background: rgba(0, 200, 255, .1);
+            border: 1px solid rgba(0, 200, 255, .28);
+            border-radius: 4px;
+            color: #00d4ff;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .14s;
+            font-family: 'Segoe UI', sans-serif;
+            flex-shrink: 0
+        }
+
+        .atb:hover {
+            background: rgba(0, 200, 255, .25);
+            color: #fff;
+            transform: scale(1.12)
+        }
+
+        #ac-tv {
+            font-size: 11px;
+            font-weight: 700;
+            color: #00d4ff;
+            min-width: 30px;
+            text-align: center
+        }
+
+        /* Tooltip */
+        #tip {
+            position: fixed;
+            background: rgba(2, 5, 16, .92);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(60, 120, 255, .3);
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 11px;
+            color: #b0c4ff;
+            pointer-events: none;
+            display: none;
+            z-index: 99
+        }
+
+        /* Bottom hints */
+        #hints {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 7px;
+            z-index: 50;
+            pointer-events: none
+        }
+
+        .hc {
+            background: rgba(2, 5, 16, .7);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, .06);
+            border-radius: 8px;
+            padding: 4px 12px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 10.5px;
+            color: rgba(160, 175, 220, .5)
+        }
+
+        .hc b {
+            color: rgba(200, 215, 255, .7)
+        }
+
+        /* Night mode tag */
+        #nightTag {
+            position: fixed;
+            top: 10px;
+            right: 12px;
+            background: rgba(2, 5, 16, .8);
+            border: 1px solid rgba(80, 100, 180, .25);
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 10px;
+            color: rgba(140, 160, 220, .6);
+            z-index: 50;
+            pointer-events: none
+        }
+    </style>
+</head>
+
+<body>
+    <div id="hud">
+        <div class="pill" id="p-light1" onclick="toggleDev('light1')"><span class="dot"></span>💡 Light 1: <b>OFF</b>
+        </div>
+        <div class="pill" id="p-light2" onclick="toggleDev('light2')"><span class="dot"></span>💡 Light 2: <b>OFF</b>
+        </div>
+        <div class="pill" id="p-fan" onclick="toggleDev('fan')"><span class="dot"></span>🌀 Fan: <b>OFF</b></div>
+        <div class="pill" id="p-tv" onclick="toggleDev('tv')"><span class="dot"></span>📺 TV: <b>OFF</b></div>
+        <div class="pill" id="p-ac" onclick="toggleDev('ac')" style="gap:5px">
+            <span class="dot"></span>❄️ AC: <b id="ac-ps">OFF</b>
+            <div class="act">
+                <button class="atb" onclick="event.stopPropagation();acT(-1)">▼</button>
+                <span id="ac-tv">24°C</span>
+                <button class="atb" onclick="event.stopPropagation();acT(1)">▲</button>
+            </div>
+        </div>
+    </div>
+    <div id="tip"></div>
+    <div id="nightTag">🌙 Night Mode</div>
+    <div id="hints">
+        <div class="hc">Scroll to <b>zoom</b></div>
+        <div class="hc">Drag to <b>orbit</b></div>
+        <div class="hc">Click to <b>toggle</b></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        /* ── RENDERER ── */
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+        document.body.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020408);
+        scene.fog = new THREE.Fog(0x020408, 16, 30);
+
+        const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 80);
+        camera.position.set(0, 3.4, 9.5);
+
+        let controls = null;
+        try {
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 1.5, 0);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.055;
+            controls.screenSpacePanning = true;    // right-drag pans parallel to screen
+            controls.enablePan = true;             // middle/right mouse panning
+            controls.panSpeed = 1.0;
+            controls.zoomSpeed = 1.4;              // faster scroll zoom
+            controls.rotateSpeed = 0.75;
+            controls.minPolarAngle = 0;            // can look straight up
+            controls.maxPolarAngle = Math.PI * 0.9; // can look straight down
+            controls.minDistance = 0.4;            // zoom all the way into AC/TV
+            controls.maxDistance = 20;             // zoom far out to see whole room
+            controls.keys = { LEFT: 37, UP: 38, RIGHT: 39, BOTTOM: 40 };
+            controls.listenToKeyEvents(window);    // arrow keys to orbit
+            controls.update();
+        } catch (e) { console.warn('OrbitControls:', e); }
+
+        /* ── CONSTANTS ── */
+        const PI = Math.PI;
+        const RW = 13, RH = 4.2, RD = 11;
+
+        /* ── STATE ── */
+        const DS = { light1: false, light2: false, fan: false, tv: false, ac: false };
+        let acSetTemp = 24, acRoomT = 28.5;
+        let fanVel = 0, fanTarget = 0, fanAngle = 0;
+
+        /* ── HELPERS ── */
+        function mk(geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sh = true) {
+            const m = new THREE.Mesh(geo, mat);
+            m.position.set(x, y, z); m.rotation.set(rx, ry, rz);
+            if (sh) { m.castShadow = true; m.receiveShadow = true; }
+            scene.add(m); return m;
+        }
+        const B = (w, h, d, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => mk(new THREE.BoxGeometry(w, h, d), mat, x, y, z, rx, ry, rz);
+        const C = (rt, rb, h, s, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => mk(new THREE.CylinderGeometry(rt, rb, h, s), mat, x, y, z, rx, ry, rz);
+        const S = (r, s, mat, x = 0, y = 0, z = 0) => mk(new THREE.SphereGeometry(r, s, s), mat, x, y, z);
+        const std = (c, r = .9, m = 0, ex = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m, ...ex });
+
+        /* ── MATERIALS – night palette ── */
+        const M = {
+            // Room – deep dark night tones
+            floor: std(0x100e0b, .92, .02),
+            rug: std(0x1a2235, 1),
+            wall: std(0x0d1020, .96),
+            wallB: std(0x0a0d1a, .97),
+            ceil: std(0x080b14, .98),
+            trim: std(0x141828, .65, .15),
+            // Furniture
+            sofa: std(0x121c2e, .94), sofaL: std(0x182540, .9),
+            wood: std(0x2a1c0a, .85), woodL: std(0x3d2810, .8),
+            metal: std(0x6a6a7a, .28, .92), metalD: std(0x1a1a28, .42, .88),
+            tvFr: std(0x080810, .18, .82), cushion: std(0x1c2e4a, .95), tableT: std(0xa07840, .38, .1),
+            book1: std(0x5a0e0e), book2: std(0x0f2e6a), book3: std(0x1a5220), book4: std(0x5a420a),
+            leaf: std(0x124428, .92), pot: std(0x301c0a, .9), cord: std(0x0e0e0e, .95),
+            shade: std(0x141825, .52, .42, { side: THREE.DoubleSide }),
+            fanHub: std(0x888898, .3, .9), fanBl: std(0x5c4018, .75),
+            glass: std(0x1e3050, .05, .42, { transparent: true, opacity: .48 }),
+            art1: std(0x060d1e, .95, 0, { emissive: new THREE.Color(.02, .04, .1), emissiveIntensity: 1 }),
+            art2: std(0x180808, .95, 0, { emissive: new THREE.Color(.08, .02, .02), emissiveIntensity: 1 }),
+            artFr: std(0x241812, .5, .28),
+            // Night window – deep moonlit blue
+            winFr: std(0x7a6030, .52, .22),
+            winGl: std(0x060e28, 0, 0, { emissive: new THREE.Color(.04, .06, .22), emissiveIntensity: 1, transparent: true, opacity: .55, side: THREE.DoubleSide }),
+            // AC
+            acBody: std(0xccd8e0, .52, .1),
+            acFront: std(0xe0eaf0, .42, .08),
+            acGrille: std(0xb8c8d4, .72, .05),
+            acSlat: std(0xd4e0ea, .38, .08, { side: THREE.DoubleSide }),
+        };
+
+        /* ════════════════════════════════════════
+           CANVAS TEXTURES
+        ════════════════════════════════════════ */
+
+        /* ── NETFLIX 4K (3840×2160, all coords ×3) ── */
+        function makeNetflix() {
+            const W = 3840, H = 2160, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+            const c = cv.getContext('2d');
+
+            // Background
+            c.fillStyle = '#141414'; c.fillRect(0, 0, W, H);
+
+            // Hero background gradient (left side blue-dark)
+            const hg = c.createLinearGradient(0, 0, W * .6, H * .75);
+            hg.addColorStop(0, '#1a2150'); hg.addColorStop(.5, '#0d1535'); hg.addColorStop(1, '#141414');
+            c.fillStyle = hg; c.fillRect(0, 0, W, H * .74);
+
+            // Right fade to black
+            const rf = c.createLinearGradient(W * .5, 0, W, 0);
+            rf.addColorStop(0, 'transparent'); rf.addColorStop(1, 'rgba(20,20,20,.96)');
+            c.fillStyle = rf; c.fillRect(0, 0, W, H * .74);
+
+            // Bottom fade to black
+            const bf = c.createLinearGradient(0, H * .52, 0, H * .75);
+            bf.addColorStop(0, 'transparent'); bf.addColorStop(1, '#141414');
+            c.fillStyle = bf; c.fillRect(0, H * .52, W, H * .24);
+
+            // Top nav gradient
+            const tg = c.createLinearGradient(0, 0, 0, 264);
+            tg.addColorStop(0, 'rgba(0,0,0,.88)'); tg.addColorStop(1, 'transparent');
+            c.fillStyle = tg; c.fillRect(0, 0, W, 264);
+
+            // ── Netflix N logo (×3 scale)
+            c.save(); c.fillStyle = '#E50914';
+            c.fillRect(132, 36, 30, 216);      // left bar
+            c.fillRect(258, 36, 30, 216);      // right bar
+            c.beginPath(); c.moveTo(162, 36); c.lineTo(258, 252); c.lineTo(258, 210); c.lineTo(162, 78); c.closePath(); c.fill();
+            c.restore();
+
+            // NETFLIX wordmark
+            c.font = 'bold 138px Arial'; c.fillStyle = '#E50914'; c.textAlign = 'left';
+            c.fillText('NETFLIX', 312, 219);
+
+            // Nav bar
+            const navItems = ['Home', 'TV Shows', 'Movies', 'New & Popular', 'My List'];
+            navItems.forEach((n, i) => {
+                c.font = '51px Arial';
+                c.fillStyle = i === 0 ? '#fff' : 'rgba(255,255,255,.75)';
+                c.fillText(n, 690 + i * 570, 180);
+            });
+
+            // ── STRANGER THINGS hero
+            c.save();
+            c.shadowColor = 'rgba(0,0,0,.95)'; c.shadowBlur = 72;
+            c.font = 'bold 234px Arial'; c.fillStyle = '#fff'; c.textAlign = 'left';
+            c.fillText('STRANGER', 186, 705);
+            c.font = 'bold 270px Arial'; c.fillStyle = '#ff2222';
+            c.fillText('THINGS', 186, 1014);
+            c.restore();
+
+            // N badge (Netflix branded show)
+            c.fillStyle = '#E50914'; c.fillRect(186, 1062, 8, 42);
+            c.font = 'bold 46px Arial'; c.fillStyle = 'rgba(255,255,255,.9)'; c.fillText(' N  Series', 186, 1104);
+
+            // Match + year
+            c.fillStyle = '#46d369'; c.font = 'bold 51px Arial';
+            c.fillText('★★★★☆  97% Match', 186, 1176);
+
+            // Genre / year
+            c.fillStyle = 'rgba(255,255,255,.55)'; c.font = '45px Arial';
+            c.fillText('2022  ·  4 Seasons  ·  TV-14  ·  Sci-Fi / Horror', 186, 1251);
+
+            // Description
+            c.fillStyle = 'rgba(255,255,255,.78)'; c.font = '42px Arial';
+            c.fillText('When a young boy vanishes, a small town uncovers a mystery', 186, 1320);
+            c.fillText('involving secret experiments and terrifying supernatural forces.', 186, 1374);
+
+            // Buttons
+            function rr(x, y, w, h, r) {
+                c.beginPath(); c.moveTo(x + r, y); c.lineTo(x + w - r, y);
+                c.arcTo(x + w, y, x + w, y + r, r); c.lineTo(x + w, y + h - r);
+                c.arcTo(x + w, y + h, x + w - r, y + h, r); c.lineTo(x + r, y + h);
+                c.arcTo(x, y + h, x, y + h - r, r); c.lineTo(x, y + r);
+                c.arcTo(x, y, x + r, y, r); c.closePath();
+            }
+            // Play button
+            c.fillStyle = '#fff'; rr(186, 1422, 450, 144, 18); c.fill();
+            c.fillStyle = '#000'; c.font = 'bold 54px Arial'; c.textAlign = 'center';
+            c.fillText('▶  Play', 186 + 225, 1422 + 90);
+            // More Info button
+            c.fillStyle = 'rgba(109,109,110,.7)'; rr(654, 1422, 534, 144, 18); c.fill();
+            c.fillStyle = '#fff'; c.font = 'bold 48px Arial';
+            c.fillText('ⓘ  More Info', 654 + 267, 1422 + 90);
+
+            // ── TRENDING NOW row
+            c.text = 'left'; c.textAlign = 'left';
+            c.fillStyle = 'rgba(255,255,255,.92)'; c.font = 'bold 63px Arial';
+            c.fillText('Trending Now', 162, 1638);
+
+            const shows = [
+                { t: 'Ozark', a: '#1a237e', b: '#3949ab' },
+                { t: 'Squid Game', a: '#7b0a2c', b: '#c13359' },
+                { t: 'The Witcher', a: '#163318', b: '#2e6b35' },
+                { t: 'Bridgerton', a: '#3e1060', b: '#7c40aa' },
+                { t: 'Money Heist', a: '#8f2900', b: '#c94a1a' },
+                { t: 'Dark', a: '#0a3040', b: '#1a6080' },
+                { t: 'Wednesday', a: '#111', b: '#333' }
+            ];
+            shows.forEach((s, i) => {
+                const sx = 162 + i * 516, sy = 1710, sw = 474, sh = 276;
+                if (sx + sw > W - 30) return;
+                const g = c.createLinearGradient(sx, sy, sx + sw, sy + sh);
+                g.addColorStop(0, s.a); g.addColorStop(1, s.b);
+                c.fillStyle = g; rr(sx, sy, sw, sh, 15); c.fill();
+                const dg = c.createLinearGradient(sx, sy, sx, sy + sh);
+                dg.addColorStop(0, 'transparent'); dg.addColorStop(1, 'rgba(0,0,0,.6)');
+                c.fillStyle = dg; rr(sx, sy, sw, sh, 15); c.fill();
+                c.fillStyle = 'rgba(255,255,255,.95)'; c.font = 'bold 39px Arial'; c.textAlign = 'left';
+                c.fillText(s.t, sx + 24, sy + sh - 30);
+                c.fillStyle = 'rgba(0,0,0,.55)'; c.font = 'bold 66px Arial';
+                c.fillText(String(i + 1), sx + 21, sy + 72);
+            });
+
+            // Progress bar (currently watching indicator)
+            c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(162, 1998, 474, 9);
+            c.fillStyle = '#E50914'; c.fillRect(162, 1998, 300, 9);
+
+            const t = new THREE.CanvasTexture(cv); t.needsUpdate = true; return t;
+        }
+
+
+        /* ── TV OFF ── */
+        function makeTvOff() {
+            const cv = document.createElement('canvas'); cv.width = 4096; cv.height = 2304;
+            const c = cv.getContext('2d'), W = 4096, H = 2304;
+            c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+            const L = c.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 64);
+            L.addColorStop(0, 'rgba(255,30,30,.88)'); L.addColorStop(1, 'transparent');
+            c.fillStyle = L; c.beginPath(); c.arc(W / 2, H / 2, 64, 0, PI * 2); c.fill();
+            c.fillStyle = 'rgba(255,60,40,.95)'; c.beginPath(); c.arc(W / 2, H / 2, 20, 0, PI * 2); c.fill();
+            c.fillStyle = 'rgba(255,255,255,.06)'; c.font = 'bold 140px Arial'; c.textAlign = 'center'; c.fillText('SAMSUNG', W / 2, H / 2 + 200);
+            c.font = '80px Arial'; c.fillStyle = 'rgba(255,255,255,.04)'; c.fillText('Smart TV  ·  Standby', W / 2, H / 2 + 310);
+            const t = new THREE.CanvasTexture(cv); t.needsUpdate = true; return t;
+        }
+
+        /* 4K AC LCD — 2560×800, all values ×4 */
+        function makeAcLCD(on, setT, roomT) {
+            const W = 2560, H = 800, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+            const c = cv.getContext('2d');
+            // Panel background
+            const bg = c.createLinearGradient(0, 0, 0, H);
+            bg.addColorStop(0, '#1a1e24'); bg.addColorStop(1, '#0e1118');
+            c.fillStyle = bg; c.fillRect(0, 0, W, H);
+            c.strokeStyle = 'rgba(0,210,255,.18)'; c.lineWidth = 6; c.strokeRect(3, 3, W - 6, H - 6);
+            if (on) {
+                // Operation LED top-right
+                const led = c.createRadialGradient(W - 112, 112, 0, W - 112, 112, 56);
+                led.addColorStop(0, 'rgba(0,255,100,1)'); led.addColorStop(.4, 'rgba(0,220,80,.8)'); led.addColorStop(1, 'rgba(0,200,60,0)');
+                c.fillStyle = led; c.beginPath(); c.arc(W - 112, 112, 56, 0, PI * 2); c.fill();
+                c.fillStyle = '#00ff64'; c.beginPath(); c.arc(W - 112, 112, 18, 0, PI * 2); c.fill();
+                c.fillStyle = 'rgba(0,255,100,.55)'; c.font = '36px "Courier New"'; c.textAlign = 'right'; c.fillText('OPERATION', W - 180, 128);
+                // SET TEMP — huge 7-segment digits
+                c.shadowColor = '#00ffff'; c.shadowBlur = 140; c.fillStyle = '#00ffff';
+                c.font = 'bold 440px "Courier New",monospace'; c.textAlign = 'center';
+                c.fillText(String(setT).padStart(2, '0'), W / 2 - 160, 540); c.shadowBlur = 0;
+                // °C
+                c.font = 'bold 160px "Courier New"'; c.fillStyle = '#44eeff';
+                c.shadowColor = '#44eeff'; c.shadowBlur = 48; c.fillText('°C', W / 2 + 320, 376); c.shadowBlur = 0;
+                // SET TEMP label
+                c.fillStyle = 'rgba(0,200,220,.65)'; c.font = '40px "Courier New"'; c.textAlign = 'center'; c.fillText('SET TEMP', W / 2 - 160, 608);
+                // Mode icons left column
+                [{ icon: '❄', label: 'COOL', active: true }, { icon: '🔥', label: 'HEAT' }, { icon: '💨', label: 'FAN' }, { icon: '💧', label: 'DRY' }, { icon: '🔄', label: 'AUTO' }]
+                    .forEach((mode, i) => {
+                        const mx = 128, my = 120 + i * 128;
+                        if (mode.active) {
+                            c.fillStyle = 'rgba(0,200,255,.18)'; c.beginPath();
+                            c.roundRect ? c.roundRect(mx - 24, my - 64, 248, 104, 16) : c.rect(mx - 24, my - 64, 248, 104); c.fill();
+                            c.strokeStyle = 'rgba(0,200,255,.4)'; c.lineWidth = 3; c.stroke(); c.fillStyle = '#00d4ff';
+                        } else { c.fillStyle = 'rgba(255,255,255,.22)'; }
+                        c.font = '44px "Courier New"'; c.textAlign = 'left'; c.fillText(mode.label, mx + 88, my + 16);
+                        c.font = '52px Arial'; c.fillText(mode.icon, mx + 16, my + 16);
+                    });
+                // Fan speed bars right column
+                c.fillStyle = 'rgba(0,200,220,.5)'; c.font = '36px "Courier New"'; c.textAlign = 'right'; c.fillText('FAN SPEED', W - 56, 312);
+                [0, 1, 2, 3].forEach(b => {
+                    const bh = 40 + b * 32, bx = W - 56 - 4 * (48 + 16) + b * (48 + 16), by = 440 - bh;
+                    c.fillStyle = b < 2 ? '#00d4ff' : 'rgba(0,200,220,.22)';
+                    if (b < 2) { c.shadowColor = '#00d4ff'; c.shadowBlur = 24; }
+                    c.fillRect(bx, by, 48, bh); c.shadowBlur = 0;
+                });
+                c.fillStyle = 'rgba(0,200,220,.55)'; c.font = '36px "Courier New"'; c.textAlign = 'right'; c.fillText('AUTO', W - 56, 500);
+                // Room temp bottom-left
+                c.fillStyle = 'rgba(0,185,205,.55)'; c.font = '40px "Courier New"'; c.textAlign = 'left';
+                c.fillText('ROOM  ' + roomT.toFixed(1) + '°C', 48, H - 56);
+                // Timer bottom-right
+                c.fillStyle = 'rgba(0,185,205,.42)'; c.textAlign = 'right'; c.fillText('TIMER  OFF', W - 48, H - 56);
+                // Scan lines
+                for (let sl = 0; sl < H; sl += 16) { c.fillStyle = 'rgba(0,0,0,.055)'; c.fillRect(0, sl, W, 6); }
+            } else {
+                // Standby red LED
+                const sled = c.createRadialGradient(W - 112, 112, 0, W - 112, 112, 48);
+                sled.addColorStop(0, 'rgba(255,40,20,.9)'); sled.addColorStop(1, 'rgba(255,0,0,0)');
+                c.fillStyle = sled; c.beginPath(); c.arc(W - 112, 112, 48, 0, PI * 2); c.fill();
+                c.fillStyle = 'rgba(255,60,40,.95)'; c.beginPath(); c.arc(W - 112, 112, 18, 0, PI * 2); c.fill();
+                c.fillStyle = 'rgba(255,60,40,.38)'; c.font = '36px "Courier New"'; c.textAlign = 'right'; c.fillText('STANDBY', W - 180, 128);
+                c.fillStyle = 'rgba(255,255,255,.08)';
+                c.font = 'bold 128px Arial'; c.textAlign = 'center'; c.fillText('DAIKIN', W / 2, H / 2 + 30);
+                c.font = '44px Arial'; c.fillStyle = 'rgba(255,255,255,.05)'; c.fillText('Inverter · Smart Control', W / 2, H / 2 + 120);
+                for (let sl = 0; sl < H; sl += 16) { c.fillStyle = 'rgba(0,0,0,.055)'; c.fillRect(0, sl, W, 6); }
+            }
+            const t = new THREE.CanvasTexture(cv); t.needsUpdate = true; return t;
+        }
+
+        /* ── Dynamic materials ── */
+        const netflixTex = makeNetflix(), tvOffTex = makeTvOff();
+        const MAT_tvOff = new THREE.MeshStandardMaterial({ map: tvOffTex, roughness: .04, metalness: 0 });
+        const MAT_tvOn = new THREE.MeshStandardMaterial({ map: netflixTex, roughness: .04, metalness: 0, emissiveMap: netflixTex, emissive: new THREE.Color(1, 1, 1), emissiveIntensity: .4 });
+        const MAT_bulbOff = std(0x3a3a4a, .32, .12);
+        const MAT_bulbOn = new THREE.MeshStandardMaterial({ color: 0xffe882, roughness: .08, emissive: new THREE.Color(1.3, .85, .2), emissiveIntensity: 3 });
+        const MAT_acLCD = new THREE.MeshStandardMaterial({ map: makeAcLCD(false, 24, 28.5), roughness: .04, metalness: 0 });
+        const MAT_ledOff = std(0x1a0000, .3, .18);
+        const MAT_ledOn = new THREE.MeshStandardMaterial({ color: 0x00ff88, roughness: .15, emissive: new THREE.Color(0, 1, .55), emissiveIntensity: 3.5 });
+
+        /* ════════════════════════════════════════
+           LIGHTING  (night mode)
+        ════════════════════════════════════════ */
+        // Night ambient – slightly visible room structure
+        scene.add(new THREE.AmbientLight(0x1a2840, 1.0));
+        // Moonlight hemisphere – sky blue / warm ground
+        scene.add(Object.assign(new THREE.HemisphereLight(0x2a3d80, 0x0c0905, .38), {}));
+        // Moonlight directional from window (right wall) – stronger
+        const moonL = new THREE.DirectionalLight(0x3a50a0, .55);
+        moonL.position.set(6, 4, 1); moonL.castShadow = true;
+        moonL.shadow.mapSize.set(1024, 1024); moonL.shadow.camera.left = -9; moonL.shadow.camera.right = 9;
+        moonL.shadow.camera.top = 7; moonL.shadow.camera.bottom = -4; moonL.shadow.bias = -.0008;
+        scene.add(moonL);
+
+        // Device lights – OFF by default
+        const ptL1 = new THREE.PointLight(0xffd880, 0, 14); ptL1.castShadow = true; ptL1.shadow.mapSize.set(512, 512); ptL1.position.set(-2.2, 3.1, -.6); scene.add(ptL1);
+        const ptL2 = new THREE.PointLight(0xffd880, 0, 14); ptL2.castShadow = true; ptL2.shadow.mapSize.set(512, 512); ptL2.position.set(2.2, 3.1, -.6); scene.add(ptL2);
+        const ptFan = new THREE.PointLight(0xfff0e0, 0, 12); ptFan.position.set(0, 3.2, 1.5); scene.add(ptFan);
+        const ptTV = new THREE.PointLight(0x1e3a90, 0, 7); ptTV.position.set(0, 1.8, -3.5); scene.add(ptTV);
+        const ptAC = new THREE.PointLight(0x00bbee, 0, 8); ptAC.position.set(4.8, 2.2, -1.6); scene.add(ptAC); // on right wall side
+
+        // Window moonlight glow – stronger so outside is visible
+        const ptMoon = new THREE.PointLight(0x2a3d90, .85, 11); ptMoon.position.set(5.5, 2.4, .6); scene.add(ptMoon);
+        // Extra fill from window corner
+        const ptWinFill = new THREE.PointLight(0x1a2870, .45, 7); ptWinFill.position.set(5.8, 1.8, 1.2); scene.add(ptWinFill);
+
+        /* ════════════════════════════════════════
+           ROOM STRUCTURE
+        ════════════════════════════════════════ */
+        B(RW, .12, RD, M.floor, 0, -.06, 0);
+        B(5.2, .015, 3.4, M.rug, 0, .012, 1.2);
+        B(RW, .12, RD, M.ceil, 0, RH, 0);
+        B(RW, RH, .12, M.wallB, 0, RH / 2, -RD / 2);
+        B(.12, RH, RD, M.wall, -RW / 2, RH / 2, 0);
+        B(.12, RH, RD, M.wall, RW / 2, RH / 2, 0);
+        // Trim
+        [[-RD / 2 + .09, 0], [0, 0]].forEach(([z]) => { B(RW, .1, .05, M.trim, 0, .05, -RD / 2 + .09); });
+        B(.05, .1, RD, M.trim, -RW / 2 + .08, .05, 0); B(.05, .1, RD, M.trim, RW / 2 - .08, .05, 0);
+        B(RW, .06, .05, M.trim, 0, RH - .08, -RD / 2 + .08); B(.05, .06, RD, M.trim, -RW / 2 + .08, RH - .08, 0); B(.05, .06, RD, M.trim, RW / 2 - .08, RH - .08, 0);
+        // Accent wall panel (TV area)
+        B(4, RH, .012, std(0x070b18, .98), 0, RH / 2, -RD / 2 + .12);
+        // Night window – moon glow
+        B(.07, 2.2, 1.5, M.winFr, RW / 2 + .04, 2.3, .6);
+        B(.008, 2, 1.3, M.winGl, RW / 2 - .005, 2.3, .6);
+
+        /* ════════════════════════════════════════
+           FURNITURE
+        ════════════════════════════════════════ */
+        // Sofa
+        B(5, .55, 1.5, M.sofa, 0, .28, 2.65); B(5, .78, .22, M.sofa, 0, .84, 3.34);
+        B(.28, .7, 1.74, M.sofa, -2.64, .35, 2.65); B(.28, .7, 1.74, M.sofa, 2.64, .35, 2.65);
+        [[-2.3, 2], [2.3, 2], [-2.3, 3.1], [2.3, 3.1]].forEach(([x, z]) => B(.09, .18, .09, M.metal, x, .09, z));
+        [-1.55, 0, 1.55].forEach(x => { B(1.42, .18, 1.22, M.cushion, x, .65, 2.65); B(1.42, .42, .14, M.sofaL, x, .78, 3.26); });
+        B(.5, .5, .1, M.cushion, 1.8, .94, 3.25, 0, 0, .26);
+        // Coffee table
+        B(1.72, .06, .88, M.tableT, 0, .48, 1.2); B(1.52, .03, .68, M.woodL, 0, .22, 1.2);
+        [[-.68, .3], [.68, .3], [-.68, 2.1], [.68, 2.1]].forEach(([x, z]) => B(.055, .44, .055, M.wood, x, .23, z - .9 + 1.2));
+        B(.18, .22, .18, M.glass, .52, .6, 1.12); B(.25, .018, .25, M.woodL, -.48, .5, 1.3); B(.2, .024, .08, M.metalD, .08, .5, 1.04);
+        // TV Console
+        B(2.9, .5, .52, M.wood, 0, .25, -4.72); B(2.7, .04, .48, M.woodL, 0, .52, -4.72);
+        [[-1.12], [1.12]].forEach(([x]) => B(.09, .24, .46, M.metalD, x, .12, -4.72));
+        [-.56, .56].forEach(x => B(.18, .022, .022, M.metal, x, .28, -4.46));
+        B(.35, .04, .22, M.metalD, -.8, .54, -4.53); B(.6, .02, .18, M.metalD, .5, .54, -4.53);
+        // Bookshelf
+        const BSX = -5.75, BSZ = -2.2;
+        B(.28, 3, 1.5, M.wood, BSX, 1.5, BSZ);
+        [.25, 1, 1.75, 2.5].forEach(y => B(.03, .04, 1.42, M.woodL, BSX + .12, y, BSZ));
+        [M.book1, M.book2, M.book3, M.book4, M.book1].forEach((bm, i) => {
+            B(.055, .28, .18, bm, BSX + .13, .44, BSZ - .54 + i * .27);
+            B(.055, .32, .18, bm, BSX + .13, 1.2, BSZ - .54 + i * .27);
+            B(.055, .27, .18, bm, BSX + .13, 1.96, BSZ - .54 + i * .27);
+        });
+        S(.1, 10, std(0x2255cc, .15, .88), BSX + .14, 2.72, BSZ);
+        // Floor lamp (right corner)
+        C(.02, .02, 1.85, 8, M.metal, 4.75, .93, 3); B(.38, .04, .38, M.metalD, 4.75, .02, 3);
+        C(.28, .1, .34, 16, std(0xddcca0, .55, 0, { transparent: true, opacity: .85, side: THREE.DoubleSide }), 4.75, 1.87, 3);
+        // Side table (right of sofa)
+        C(.3, .3, .035, 16, M.tableT, 3.1, .67, 2.2); C(.03, .03, .63, 8, M.metalD, 3.1, .34, 2.2); C(.22, .22, .02, 16, M.metalD, 3.1, .03, 2.2);
+        // Plants
+        function plant(x, y, z, sc) {
+            C(.13 * sc, .17 * sc, .3 * sc, 10, M.pot, x, y + .16 * sc, z); C(.01, .01, .22 * sc, 6, M.wood, x, y + .47 * sc, z);
+            S(.34 * sc, 10, M.leaf, x, y + .7 * sc, z); S(.2 * sc, 8, M.leaf, x + .2 * sc, y + .58 * sc, z + .08 * sc); S(.17 * sc, 8, M.leaf, x - .17 * sc, y + .56 * sc, z - .08 * sc);
+        }
+        plant(-5.4, 0, 3.6, .92); plant(4.5, 0, 3.6, .85); plant(3.1, .67, 2.2, .5);
+        // Wall art
+        B(.06, .88, 1.02, M.artFr, -2.84, 2.8, -RD / 2 + .06); B(.01, .78, .9, M.art1, -2.84, 2.8, -RD / 2 + .12);
+        B(.06, .68, .86, M.artFr, 3.2, 2.9, -RD / 2 + .06); B(.01, .58, .74, M.art2, 3.2, 2.9, -RD / 2 + .12);
+        // Clock
+        C(.001, .3, .3, 24, std(0xddd0bb, .72), -RW / 2 + .06, 2.85, 0, 0, 0, PI / 2);
+        for (let i = 0; i < 12; i++) { const a = i / 12 * PI * 2; B(.01, .055, .01, M.metalD, -RW / 2 + .04, 2.85 + Math.sin(a) * .24, Math.cos(a) * .24); }
+
+        /* ════════════════════════════════════════
+           TV (wall-mounted)
+        ════════════════════════════════════════ */
+        B(.6, .7, .07, M.metalD, 0, 1.68, -RD / 2 + .1);
+        B(2.35, 1.37, .065, M.tvFr, 0, 1.82, -RD / 2 + .145);
+        const SCREEN = new THREE.Mesh(new THREE.PlaneGeometry(2.24, 1.26), MAT_tvOff);
+        SCREEN.position.set(0, 1.82, -RD / 2 + .18); SCREEN._key = 'tv'; scene.add(SCREEN);
+        const blurMat = new THREE.MeshBasicMaterial({ color: 0x1020a0, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+        const BACKLIGHT = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 1.7), blurMat); BACKLIGHT.position.set(0, 1.82, -RD / 2 - .03); scene.add(BACKLIGHT);
+        B(.07, .62, .07, M.metalD, 0, 1.23, -RD / 2 + .16); B(.68, .04, .28, M.metalD, 0, .96, -RD / 2 + .22);
+
+        /* ════════════════════════════════════════
+           PENDANT LIGHTS
+        ════════════════════════════════════════ */
+        const BULBS = {};
+        function makePendant(px, pz, key) {
+            const g = new THREE.Group(); g.position.set(px, RH, pz);
+            const rose = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, .06, 16), M.metal); rose.position.y = -.03; g.add(rose);
+            const cord = new THREE.Mesh(new THREE.CylinderGeometry(.007, .007, .86, 6), M.cord); cord.position.y = -.46; g.add(cord);
+            const shd = new THREE.Mesh(new THREE.CylinderGeometry(.26, .1, .32, 20, 1, true), M.shade); shd.position.y = -.94; g.add(shd);
+            const tD = new THREE.Mesh(new THREE.CircleGeometry(.26, 20), M.metal); tD.rotation.x = -PI / 2; tD.position.y = -.78; g.add(tD);
+            const innerM = new THREE.MeshBasicMaterial({ color: 0xffcc50, side: THREE.BackSide, transparent: true, opacity: 0 });
+            const inn = new THREE.Mesh(new THREE.CylinderGeometry(.24, .09, .3, 20, 1, true), innerM); inn.position.y = -.94; g.add(inn);
+            const bulb = new THREE.Mesh(new THREE.SphereGeometry(.1, 14, 10), MAT_bulbOff); bulb.position.y = -1.04; bulb._key = key; g.add(bulb);
+            const haloM = new THREE.MeshBasicMaterial({ color: 0xffdd60, transparent: true, opacity: 0, depthWrite: false });
+            const halo = new THREE.Mesh(new THREE.SphereGeometry(.22, 12, 10), haloM); halo.position.copy(bulb.position); g.add(halo);
+            scene.add(g); BULBS[key] = { bulb, halo, innerM };
+        }
+        makePendant(-2.2, -.6, 'light1'); makePendant(2.2, -.6, 'light2');
+
+        /* ════════════════════════════════════════
+           CEILING FAN
+        ════════════════════════════════════════ */
+        const fanGrp = new THREE.Group(); fanGrp.position.set(0, RH, 1.5); scene.add(fanGrp);
+        const canF = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, .1, 20), M.fanHub); canF.position.y = -.05; fanGrp.add(canF);
+        const dRod = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .52, 8), M.metal); dRod.position.y = -.35; fanGrp.add(dRod);
+        const motA = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .18, 20), M.fanHub); motA.position.y = -.73; motA._key = 'fan'; fanGrp.add(motA);
+        const motB = new THREE.Mesh(new THREE.CylinderGeometry(.14, .2, .12, 20), M.metal); motB.position.y = -.86; fanGrp.add(motB);
+        const bladeGrp = new THREE.Group(); bladeGrp.position.y = -.73; fanGrp.add(bladeGrp);
+        for (let i = 0; i < 5; i++) {
+            const a = i / 5 * PI * 2;
+            const bl = new THREE.Mesh(new THREE.BoxGeometry(1.15, .025, .22), M.fanBl);
+            bl.position.set(Math.cos(a) * .62, 0, Math.sin(a) * .62); bl.rotation.y = a + PI / 2; bl.rotation.x = -.07; bl._key = 'fan'; bladeGrp.add(bl);
+        }
+        const ringG = new THREE.Mesh(new THREE.TorusGeometry(.2, .012, 8, 20), M.metal); ringG.rotation.x = PI / 2; ringG.position.y = -.73; fanGrp.add(ringG);
+        const domeM = std(0xfff5e0, .28, 0, { transparent: true, opacity: .9 });
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(.13, 14, 8, 0, PI * 2, 0, PI / 1.8), domeM); dome.position.y = -.97; fanGrp.add(dome);
+        const dCap = new THREE.Mesh(new THREE.CircleGeometry(.13, 14), M.metal); dCap.rotation.x = -PI / 2; dCap.position.y = -.97; fanGrp.add(dCap);
+        const fanDomeEmit = new THREE.MeshBasicMaterial({ color: 0xfff0cc, transparent: true, opacity: 0, depthWrite: false, side: THREE.BackSide });
+        const fanGlow = new THREE.Mesh(new THREE.SphereGeometry(.12, 12, 8, 0, PI * 2, 0, PI / 1.8), fanDomeEmit); fanGlow.position.y = -.97; fanGrp.add(fanGlow);
+
+        /* ════════════════════════════════════════
+           AC SPLIT UNIT – RIGHT WALL
+           Mounted at x=6.27 (right wall x=6.5)
+           Facing into room  (-x direction)
+           Height y=2.65, depth on wall z=-1.6
+        ════════════════════════════════════════ */
+        // Right wall is at x = +RW/2 = +6.5
+        // AC body center at x = 6.5 - 0.11 = 6.39
+        // AC front face at x ≈ 6.28 (facing left, into room)
+        const AX = RW / 2 - .11, AY = 2.65, AZ = -1.6;
+
+        // ── Main housing body (white plastic)
+        B(.22, .34, 1.4, M.acBody, AX, AY, AZ);
+        // ── Front face panel
+        B(.012, .3, 1.32, M.acFront, AX - .115, AY, AZ);
+        // ── Top intake grille (horizontal strips, slightly recessed)
+        for (let gi = 0; gi < 5; gi++) B(.018, .014, 1.24, M.acGrille, AX - .112, AY + .12 - gi * .038, AZ);
+        // ── Side vents (vertical slits on ends)
+        for (let si = 0; si < 3; si++) B(.012, .24, .014, M.acGrille, AX - .112, AY - .02 + si * .02, AZ - .64 + si * .01);
+
+        /* ── Louver slats (5 horizontal, animate when ON) ── */
+        const louvers = [];
+        for (let li = 0; li < 5; li++) {
+            const sl = new THREE.Mesh(new THREE.BoxGeometry(.012, .018, 1.25), M.acSlat);
+            sl.position.set(AX - .116, AY - .06 - li * .03, AZ); sl.castShadow = false; scene.add(sl); louvers.push(sl);
+        }
+
+        /* ── LCD Display panel ── */
+        // Larger for clear real-world visibility
+        const AC_LCD = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.16), MAT_acLCD);
+        AC_LCD.position.set(AX - .123, AY + .06, AZ - .25); // center display
+        AC_LCD.rotation.y = -PI / 2; // face −x into room
+        AC_LCD._key = 'ac';
+        scene.add(AC_LCD);
+
+        /* ── Brand logo strip ── */
+        const logoM = std(0x8aaabb, .45, .25, { emissive: new THREE.Color(.01, .02, .03), emissiveIntensity: 1 });
+        B(.012, .04, .18, logoM, AX - .117, AY + .06, AZ + .52);
+
+        /* ── Operation LED ── */
+        let acLed = new THREE.Mesh(new THREE.SphereGeometry(.012, 8, 6), MAT_ledOff);
+        acLed.position.set(AX - .122, AY + .12, AZ + .58); acLed._key = 'ac'; scene.add(acLed);
+
+        /* ── Ambient glow plane behind AC (cyan when ON) ── */
+        const acGlowMat = new THREE.MeshBasicMaterial({ color: 0x00aacc, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+        const acGlow = new THREE.Mesh(new THREE.PlaneGeometry(.04, .3), acGlowMat);
+        acGlow.position.set(AX - .126, AY, AZ); acGlow.rotation.y = -PI / 2; scene.add(acGlow);
+
+        /* ── Wall bracket ── */
+        B(.04, .12, .28, M.metalD, AX + .08, AY, AZ);
+
+        /* ════════════════════════════════════════
+           CLICK TARGETS
+        ════════════════════════════════════════ */
+        const CLICK = [];
+        fanGrp.traverse(ch => { if (ch.isMesh && ch._key === 'fan') CLICK.push({ mesh: ch, key: 'fan', label: 'Ceiling Fan' }); });
+        ['light1', 'light2'].forEach((k, i) => CLICK.push({ mesh: BULBS[k].bulb, key: k, label: 'Light ' + (i + 1) }));
+        CLICK.push({ mesh: SCREEN, key: 'tv', label: 'Smart TV' });
+        CLICK.push({ mesh: AC_LCD, key: 'ac', label: 'Air Conditioner' });
+        CLICK.push({ mesh: acLed, key: 'ac', label: 'Air Conditioner' });
+
+        /* ── RAYCASTER ── */
+        const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+        const tipEl = document.getElementById('tip');
+        let hovered = null;
+        renderer.domElement.addEventListener('pointermove', ev => {
+            const r = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+            mouse.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+            ray.setFromCamera(mouse, camera);
+            const hits = ray.intersectObjects(CLICK.map(t => t.mesh));
+            if (hits.length) {
+                const t = CLICK.find(t => t.mesh === hits[0].object);
+                if (t) {
+                    renderer.domElement.style.cursor = 'pointer';
+                    tipEl.style.display = 'block';
+                    tipEl.style.left = (ev.clientX + 14) + 'px'; tipEl.style.top = (ev.clientY - 10) + 'px';
+                    tipEl.textContent = 'Click to toggle ' + t.label; hovered = t; return;
+                }
+            }
+            renderer.domElement.style.cursor = 'auto'; tipEl.style.display = 'none'; hovered = null;
+        });
+        renderer.domElement.addEventListener('click', () => { if (hovered) toggleDev(hovered.key); });
+
+        /* ════════════════════════════════════════
+           APPLY FUNCTIONS
+        ════════════════════════════════════════ */
+        function applyLight(key, on) {
+            const b = BULBS[key]; if (!b) return;
+            b.bulb.material = on ? MAT_bulbOn : MAT_bulbOff;
+            b.halo.material.opacity = on ? .4 : 0; b.innerM.opacity = on ? .8 : 0;
+            (key === 'light1' ? ptL1 : ptL2).intensity = on ? 4.5 : 0;
+        }
+        function applyFan(on) {
+            ptFan.intensity = on ? 2.4 : 0; fanDomeEmit.opacity = on ? .65 : 0; fanTarget = on ? 4.5 : 0;
+        }
+        function applyTV(on) {
+            SCREEN.material = on ? MAT_tvOn : MAT_tvOff; SCREEN.material.needsUpdate = true;
+            blurMat.opacity = on ? .32 : 0; ptTV.intensity = on ? 2.2 : 0;
+        }
+        function applyAC(on) {
+            acLed.material = on ? MAT_ledOn : MAT_ledOff;
+            MAT_acLCD.map = makeAcLCD(on, acSetTemp, acRoomT); MAT_acLCD.map.needsUpdate = true;
+            if (on) {
+                MAT_acLCD.emissiveMap = MAT_acLCD.map;
+                MAT_acLCD.emissive = new THREE.Color(.1, .35, .42); MAT_acLCD.emissiveIntensity = 2.8;
+            } else {
+                MAT_acLCD.emissiveMap = null; MAT_acLCD.emissive = new THREE.Color(0, 0, 0); MAT_acLCD.emissiveIntensity = 0;
+            }
+            MAT_acLCD.needsUpdate = true; ptAC.intensity = on ? 1.2 : 0; acGlowMat.opacity = on ? .4 : 0;
+        }
+
+        /* ════════════════════════════════════════
+           STATE MANAGEMENT + HUD
+        ════════════════════════════════════════ */
+        const LOCK = {}, LOCK_MS = 4000;
+        function applyState(key, on) {
+            DS[key] = on;
+            if (key === 'light1' || key === 'light2') applyLight(key, on);
+            if (key === 'fan') applyFan(on); if (key === 'tv') applyTV(on); if (key === 'ac') applyAC(on);
+            updatePill(key, on);
+        }
+        function updatePill(key, on) {
+            const pill = document.getElementById('p-' + key); if (!pill) return;
+            const ic = { light1: '💡', light2: '💡', fan: '🌀', tv: '📺', ac: '❄️' };
+            const na = { light1: 'Light 1', light2: 'Light 2', fan: 'Fan', tv: 'TV', ac: 'AC' };
+            const cl = { light1: 'on-light', light2: 'on-light', fan: 'on-fan', tv: 'on-tv', ac: 'on-ac' };
+            if (key === 'ac') {
+                const st = document.getElementById('ac-ps'), dot = pill.querySelector('.dot');
+                if (st) st.textContent = on ? 'ON' : 'OFF';
+                if (dot) { dot.style.background = on ? '#00d4ff' : ''; dot.style.boxShadow = on ? '0 0 10px #00d4ff' : ''; }
+                pill.classList.toggle('on-ac', on);
+            } else {
+                pill.innerHTML = '<span class="dot"></span>' + ic[key] + ' ' + na[key] + ': <b>' + (on ? 'ON' : 'OFF') + '</b>';
+                pill.className = 'pill' + (on ? ' ' + cl[key] : '');
+            }
+        }
+        function toggleDev(key) {
+            const on = !DS[key]; LOCK[key] = Date.now(); applyState(key, on);
+            try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'deviceToggle', device: key, state: on ? 'ON' : 'OFF' }, '*'); } catch (e) { }
+        }
+        function acT(delta) {
+            acSetTemp = Math.max(16, Math.min(30, acSetTemp + delta));
+            const el = document.getElementById('ac-tv'); if (el) el.textContent = acSetTemp + '°C';
+            if (DS.ac) applyAC(true);
+            try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'acTempSync', temp: acSetTemp }, '*'); } catch (e) { }
+        }
+        window.addEventListener('message', ev => {
+            try {
+                const d = ev.data; if (!d) return;
+                if (d.type === 'deviceState' && d.device) {
+                    if (LOCK[d.device] && Date.now() - LOCK[d.device] < LOCK_MS) return;
+                    applyState(d.device, d.state === 'ON');
+                }
+                if (d.type === 'acTempSync' && d.temp) {
+                    acSetTemp = d.temp; const el = document.getElementById('ac-tv'); if (el) el.textContent = acSetTemp + '°C'; if (DS.ac) applyAC(true);
+                }
+            } catch (e) { }
+        });
+
+        /* ════════════════════════════════════════
+           ANIMATION LOOP
+        ════════════════════════════════════════ */
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), .05);
+            const et = clock.elapsedTime;
+            // Fan spin
+            fanVel += (fanTarget - fanVel) * dt * 4.2; fanAngle += fanVel * dt; bladeGrp.rotation.y = fanAngle;
+            // Light flicker (candle-like at night)
+            if (DS.light1) ptL1.intensity = 4.5 + Math.sin(et * 1.3) * .22 + Math.sin(et * 3.7) * .08;
+            if (DS.light2) ptL2.intensity = 4.5 + Math.sin(et * 1.8) * .22 + Math.sin(et * 2.9) * .08;
+            // Moon flicker (very subtle)
+            ptMoon.intensity = .45 + Math.sin(et * .4) * .04;
+            // AC louvers smooth tilt
+            const lTgt = DS.ac ? -32 * PI / 180 : 0;
+            louvers.forEach(sl => { sl.rotation.z += (lTgt - sl.rotation.z) * dt * 5; });
+            if (controls) controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+        });
+    </script>
+</body>
+
+</html>

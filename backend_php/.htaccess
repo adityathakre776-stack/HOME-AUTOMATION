@@ -1,0 +1,26 @@
+# Block direct access to config and includes — API files only go through api/
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Block access to config directory
+  RewriteRule ^config/    - [F,L]
+  # Block access to includes directory
+  RewriteRule ^includes/  - [F,L]
+  # Block access to database directory
+  RewriteRule ^database/  - [F,L]
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# PHP settings
+<IfModule mod_php.c>
+  php_flag display_errors Off
+  php_flag log_errors On
+</IfModule>
